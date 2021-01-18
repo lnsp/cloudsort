@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# teardown servers
+for server in $(hcloud server list -o columns=id -o noheader); do
+    hcloud server delete $server
+done
+
+# teardown volumes
+for volume in $(hcloud volume list -o columns=id -o noheader); do
+    hcloud volume delete $volume
+done
+
+# teardown network
+hcloud network delete internal

@@ -1,0 +1,75 @@
+#!/usr/bin/sh
+
+echo Mounting sdb to /export ...
+mkdir -p /export
+mount /dev/sdb /export
+
+echo Configuring kernel ...
+sysctl -w fs.file-max=4194303
+sysctl -w vm.swappiness=1
+sysctl -w vm.vfs_cache_pressure=10
+sysctl -w vm.min_free_kbytes=1000000
+sysctl -w net.core.rmem_max=268435456
+sysctl -w net.core.wmem_max=268435456
+sysctl -w net.core.rmem_default=67108864
+sysctl -w net.core.wmem_default=67108864
+sysctl -w net.core.netdev_budget=1200
+sysctl -w net.core.optmem_max=134217728
+sysctl -w net.core.somaxconn=65535
+sysctl -w net.core.netdev_max_backlog=250000
+sysctl -w net.ipv4.tcp_rmem="67108864 134217728 268435456"
+sysctl -w net.ipv4.tcp_wmem="67108864 134217728 268435456"
+sysctl -w net.ipv4.tcp_low_latency=1
+sysctl -w net.ipv4.tcp_adv_win_scale=1
+sysctl -w net.ipv4.tcp_max_syn_backlog=30000
+sysctl -w net.ipv4.tcp_max_tw_buckets=2000000
+sysctl -w net.ipv4.tcp_tw_reuse=1
+sysctl -w net.ipv4.tcp_fin_timeout=5
+sysctl -w net.ipv4.conf.all.send_redirects=0
+sysctl -w net.ipv4.conf.all.accept_redirects=0
+sysctl -w net.ipv4.conf.all.accept_source_route=0
+sysctl -w net.ipv4.tcp_mtu_probing=1
+
+echo Creating minio environment file ...
+cat > /etc/default/minio <<'EOF'
+MINIO_VOLUMES=http://10.0.0.{3...12}:9000/export
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+EOF
+
+echo Creating service configuration for minio ...
+cat > /etc/systemd/system/minio.service <<'EOF'
+[Unit]
+Description=MinIO
+Documentation=https://docs.min.io
+Wants=network-online.target
+After=network-online.target
+AssertFileIsExecutable=/usr/local/bin/minio
+
+[Service]
+WorkingDirectory=/usr/local
+User=root
+EnvironmentFile=-/etc/default/minio
+ExecStartPre=/bin/bash -c "if [ -z \"${MINIO_VOLUMES}\" ]; then echo \"Variable MINIO_VOLUMES not set in /etc/default/minio\"; exit 1; fi"
+ExecStart=/usr/local/bin/minio server $MINIO_OPTS $MINIO_VOLUMES
+
+# Let systemd restart this service always
+Restart=always
+
+# Specifies the maximum file descriptor number that can be opened by this process
+LimitNOFILE=65536
+
+# Specifies the maximum number of threads this process can create
+TasksMax=infinity
+
+# Disable timeout logic and wait until process is stopped
+TimeoutStopSec=infinity
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo Starting minio service ...
+systemctl daemon-reload
+systemctl start minio

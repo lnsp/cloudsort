@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo Point minio to cluster ...
+mc alias set minio/ http://10.0.0.3:9000 minioadmin minioadmin
+
+echo Install gensort ...
+wget http://www.ordinal.com/try.cgi/gensort-linux-1.5.tar.gz
+tar xzvf gensort-linux-1.5.tar.gz -C /tmp
+mv /tmp/64/gensort /usr/local/bin/gensort
+mv /tmp/64/valsort /usr/local/bin/valsort
+rm -rf /tmp/64

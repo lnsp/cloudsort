@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package cloudsort.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/lnsp/cloudsort/pb;pb";
+
+message Event {
+    string message = 1;
+    float progress = 2;
+    google.protobuf.Timestamp timestamp = 3;
+}
+
+message S3Credentials {
+    repeated string endpoints = 1;
+    string region = 2;
+    string access_key_id = 3;
+    string secret_access_key = 4;
+    string bucket_id = 5;
+    string object_key = 6;
+    bool disable_ssl = 7;
+}
+
+message Peer {
+    string address = 1;
+    bytes keyRangeStart = 2;
+    bytes keyRangeEnd = 3;
+}
+
+message Task {
+    string name = 1;
+    string job = 2;
+    TaskType type = 3;
+
+    oneof details {
+        SortTask sort = 4;
+        SampleTask sample = 5;
+        ShuffleSendTask shuffle_send = 6;
+        ShuffleRecvTask shuffle_recv = 7;
+        UploadTask upload = 8;
+    }
+}
+
+message SortTask {
+    S3Credentials credentials = 1;
+    int64 range_start = 2;
+    int64 range_end = 3;
+}
+
+message SampleTask {
+    int64 number_of_peers = 1;
+}
+
+message ShuffleSendTask {
+    repeated Peer peers = 1;
+}
+
+message ShuffleRecvTask {
+    int64 number_of_peers = 1;
+}
+
+message UploadTask {
+    S3Credentials credentials = 1;
+}
+
+enum TaskType {
+    // SORT is the first stage in a job. During sort,
+    // the worker fetch data from S3 and sort it.
+    SORT = 0;
+    // SAMPLE is the second stage. Each worker computes a local histogram
+    // using sampled data from its minibatch.
+    SAMPLE = 1;
+    // SHUFFLE_SEND is the third stage in a job. Each worker sends a part of its sorted data
+    // to the respective peers.
+    SHUFFLE_SEND = 2;
+    // SHUFFLE_RECV is the fourth stage in a job. Each worker receives sorted data from its peers and
+    // combines them into a single file.
+    SHUFFLE_RECV = 3;
+    // FLUSH is the fifth stage and marks the end of the combined SHUFFLE/MERGE stage.
+    FLUSH = 4;
+    // UPLOAD is the final stage. During upload, the merge result is pushed to S3.
+    // After UPLOAD, all resources attached to this job are freed.
+    UPLOAD = 5;
+    // ABORT signals abortion of the current job. After ABORT, all resources attached to this job are freed.
+    ABORT = 6;
+}
+
+enum TaskState {
+    UNKNOWN = 0;
+    ACCEPTED = 1;
+    IN_PROGRESS = 2;
+    FAILED = 3;
+    DONE = 4;
+}
+
+message TaskData {
+    oneof properties {
+        string shuffleRecvAddr = 3;
+    }
+}

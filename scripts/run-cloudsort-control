@@ -1,0 +1,15 @@
+#!/bin/bash
+master=$(hcloud server describe -o json master | jq .public_net.ipv4.ip -r)
+
+MASTER_IP=$(hcloud server list -o noheader -o columns=ipv4 master)
+
+# download minio
+ssh -o StrictHostKeyChecking=no root@$master wget https://dl.min.io/client/mc/release/linux-amd64/mc
+ssh -o StrictHostKeyChecking=no root@$master chmod +x mc
+ssh -o StrictHostKeyChecking=no root@$master ./mc alias set minio/ http://10.0.0.2:9000 minioadmin minioadmin
+ssh -o StrictHostKeyChecking=no root@$master wget http://www.ordinal.com/try.cgi/gensort-linux-1.5.tar.gz
+ssh -o StrictHostKeyChecking=no root@$master tar xzvf gensort-linux-1.5.tar.gz
+ssh -o StrictHostKeyChecking=no root@$master 64/gensort 1200000000 big-chungus
+ssh -o StrictHostKeyChecking=no root@$master ./mc mb minio/cbdp-test
+ssh -o StrictHostKeyChecking=no root@$master ./mc mv big-chungus minio/cbdp-test/big-chungus
+ssh -o StrictHostKeyChecking=no root@$master rm big-chungus

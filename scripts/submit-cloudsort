@@ -1,0 +1,1 @@
+hcloud server ssh master ./cloudsort run --control 10.0.0.2:6000 --s3-endpoint 10.0.0.2:9000 --s3-object-key big-chungus

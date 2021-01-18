@@ -1,0 +1,70 @@
+#!/bin/bash
+
+NUM_WORKERS=`seq 1 10`
+WORKER_TYPE=cpx31
+MASTER_TYPE=cpx31
+DISK_SIZE=400
+
+# create network
+hcloud network create --name internal --ip-range 10.0.0.0/16
+hcloud network add-subnet internal --type cloud --ip-range 10.0.0.0/24 --network-zone eu-central
+
+# create instances
+for i in $NUM_WORKERS
+do
+hcloud server create --ssh-key default --location fsn1 --type $WORKER_TYPE --name worker$i --ssh-key default --image debian-10
+hcloud server add-label worker$i storage=
+hcloud server add-label worker$i worker=
+echo Spawned worker $i ...
+done
+
+hcloud server create --location fsn1 --type $WORKER_TYPE --name master --ssh-key default --image debian-10
+hcloud server add-label master master=
+echo Spawned master ...
+
+# attach to network
+hcloud server attach-to-network --network internal --ip 10.0.0.2 master
+
+for i in $NUM_WORKERS
+do
+hcloud server attach-to-network --network internal --ip 10.0.0.$(expr 2 + $i) worker$i
+done
+
+# attach disks
+if [ -z "$DISK_SIZE"]
+then
+    echo "No external disks configured"
+else
+    for i in $NUM_WORKERS; do
+    hcloud volume create --name volume$i --server worker$i --automount --format ext4 --size $DISK_SIZE
+    done
+fi
+
+SSH_OPTIONS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o User=root'
+
+# mount disks at /data on each node
+for i in $NUM_WORKERS
+do
+    WORKER_IP=$(hcloud server describe worker$i -o json | jq -r .public_net.ipv4.ip)
+    echo Configuring storage on $WORKER_IP ...
+    scp $SSH_OPTIONS $HOME/go/bin/minio $WORKER_IP:/usr/local/bin/minio
+    scp $SSH_OPTIONS scripts/configure-storage $WORKER_IP:/tmp/configure-storage
+    ssh $SSH_OPTIONS $WORKER_IP /tmp/configure-storage
+done
+
+# setup master
+MASTER_IP=$(hcloud server describe master -o json | jq -r .public_net.ipv4.ip)
+scp $SSH_OPTIONS $HOME/go/bin/mc $MASTER_IP:/usr/local/bin/mc
+scp $SSH_OPTIONS scripts/configure-master $MASTER_IP:/tmp/configure-master
+ssh $SSH_OPTIONS $MASTER_IP /tmp/configure-master
+
+SSH_OPTIONS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o User=root -o LogLevel=QUIET'
+
+# install cloudsort everywhere
+for NODE_IP in $(hcloud server list -o columns=ipv4 -o noheader)
+do
+    scp $SSH_OPTIONS cloudsort $NODE_IP:/usr/local/bin/cloudsort
+done
+
+echo Done.
+

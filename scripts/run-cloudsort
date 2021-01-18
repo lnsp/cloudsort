@@ -1,0 +1,12 @@
+#!/bin/bash -x
+
+SSH_OPTIONS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o User=root -o LogLevel=QUIET'
+
+for worker in $(hcloud server list -o noheader -o columns=name -l worker);
+do
+    # kill old cloudsort instances
+    PUBLIC_IP=$(hcloud server describe -o json $worker | jq -r .public_net.ipv4.ip)
+    PRIVATE_IP=$(hcloud server describe -o json $worker | jq -r '.private_net[0].ip')
+    ssh $SSH_OPTIONS $PUBLIC_IP "killall cloudsort; cloudsort worker --memory 6000000000 --host $PRIVATE_IP --addr $PRIVATE_IP:6000 --control 10.0.0.2:6000" &
+
+done

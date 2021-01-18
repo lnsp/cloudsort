@@ -1,0 +1,6 @@
+#!/bin/bash
+
+SSH_OPTIONS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o User=root -o LogLevel=QUIET'
+for ip in $(hcloud server list -o columns=ipv4 -o noheader); do
+    scp $SSH_OPTIONS cloudsort $ip:/usr/local/bin/cloudsort
+done

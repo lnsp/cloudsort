@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+import "data.proto";
+
+package cloudsort.v1;
+option go_package = "github.com/lnsp/cloudsort/pb;pb";
+
+service Control {
+    // Client-facing API
+    rpc SubmitJob(SubmitJobRequest) returns (stream SubmitJobResponse) {};
+
+    // Worker-facing API
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {};
+    rpc PullTask(PullTaskRequest) returns (PullTaskResponse) {};
+    rpc ReportTask(ReportTaskRequest) returns (ReportTaskResponse) {};
+}
+
+message PullTaskRequest {
+    string address = 1;
+}
+
+message PullTaskResponse {
+    Task task = 1;
+}
+
+message SubmitJobRequest {
+    string name = 1;
+    S3Credentials creds = 2;
+}
+
+message SubmitJobResponse {
+    Event event = 1;
+}
+
+message HeartbeatRequest {
+    string address = 1;
+}
+
+message HeartbeatResponse {
+    bool task_available = 1;
+}
+
+message ReportTaskRequest {
+    string name = 1;
+    TaskState state = 2;
+    TaskData data = 3;
+}
+
+message ReportTaskResponse {}

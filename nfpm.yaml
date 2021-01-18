@@ -1,0 +1,15 @@
+# nfpm example config file
+#
+# check https://nfpm.goreleaser.com/configuration for detailed usage
+#
+name: "cloudsort"
+arch: "amd64"
+platform: "linux"
+version: "v${VERSION}"
+section: "default"
+maintainer: "Lennart Espe <espe@in.tum.de>"
+description: |
+  Basic external sort implementation based on distributed shuffling.
+contents:
+- src: ./cloudsort
+  dst: /usr/local/bin/cloudsort
